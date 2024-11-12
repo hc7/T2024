@@ -150,7 +150,7 @@ void CreateProcessInPool(int processId) {
 
     // Create child process with command line argument
     if (!CreateProcess(NULL, commandLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-        printf("CreateProcess error: %d\n", GetLastError());
+        printf("CreateProcess error : %d\n", GetLastError());
         return;
     }
 
