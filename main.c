@@ -163,6 +163,7 @@ int main(int argc, char *argv[]) {
     HANDLE mutex;
 
     mutex = CreateMutex(NULL, FALSE, MUTEX_NAME);
+    
     if (mutex == NULL) {
         printf("CreateMutex error: %d\n", GetLastError());
         return 1;

@@ -1,4 +1,6 @@
 #include <windows.h>
+#include <shlobj.h>
+#include <shellapi.h>
 #include <stdio.h>
 
 //#define SEMAPHORE_NAME "Global\\MySemaphore"
@@ -15,10 +17,11 @@ int call_target(char *target){
         // Load the DLL
         if(!hDll) {
             
-            strncpy(target_file_name,target,MAX_PATH);
-            strncat(target_file_name,"\\",MAX_PATH);
-            strncat(target_file_name,target,MAX_PATH);
-            strncat(target_file_name,".dll",MAX_PATH);
+            snprintf(target_file_name,MAX_PATH-1,"%s\\%s.dll",target,target);
+            // strncpy(target_file_name,target,MAX_PATH);
+            // strncat(target_file_name,"\\",MAX_PATH);
+            // strncat(target_file_name,target,MAX_PATH);
+            // strncat(target_file_name,".dll",MAX_PATH);
 
             printf("Loading the DLL '%s' ... \n", target_file_name);
 
@@ -48,15 +51,18 @@ int call_target(char *target){
         printf("Result is: %d\n", result);
 
         // Unload the DLL
-        //FreeLibrary(hDll);
-    }
+        FreeLibrary(hDll);
+
+    } 
     return 0;
 }
 
 int main(int argc, char *argv[]) {
-    //HANDLE semaphore;
+    SHFILEOPSTRUCT fileOp = {0};
     HANDLE mutex;
     char * process_name;
+    char target_project_name[MAX_PATH] = {0,};
+
 
     if (argc != 2) {
         printf("Usage: ChildProcess.exe <ProcessName>\n");
@@ -92,6 +98,22 @@ int main(int argc, char *argv[]) {
         }
 
         printf("Process '%s' finished.\n", process_name);
+        // clean up
+        //Sleep(1000);
+        strncpy(target_project_name,process_name,MAX_PATH-2);
+        target_project_name[strlen(target_project_name) + 1] = 0;
+        printf("Removing '%s' ..\n", target_project_name);
+        fileOp.wFunc = FO_DELETE;
+        
+        fileOp.pFrom = target_project_name;
+        fileOp.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_SILENT;
+        if (SHFileOperation(&fileOp) == 0) {
+            printf("Directory removed successfully.\n");
+        } else {
+            printf("Failed to delete directory.\n");
+        }
+
+
     } else {
         printf("Process '%s' encountered an error waiting for the semaphore.\n", process_name);
     }

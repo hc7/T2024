@@ -5,7 +5,7 @@
 
 __declspec(dllexport) int target(void *a);
 
-char dllFileName[MAX_PATH]; // Global variable to store the DLL name
+static char dllFileName[MAX_PATH]; // Global variable to store the DLL name
 
 // example.c
 static int counter = 0;
