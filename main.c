@@ -104,9 +104,47 @@ int main( int argc, TCHAR *argv[]){
 #define SEMAPHORE_NAME "Global\\MySemaphore"  // Unique name for the semaphore
 #define MUTEX_NAME "Global\\MyMutex"   // Unique name for the mutex
 
-void CreateProcessInPool(int processId);
+void CreateProcessInPool(char * process_name);
 
-int main() {
+
+static GUID guid_uuid;
+static char guid_str[40] = {0,};
+
+GUID * make_uuid() {
+    
+    if (CoCreateGuid(&guid_uuid) == S_OK) {
+
+        return &guid_uuid;
+    } else {
+        printf("Failed to generate UUID.\n");
+        return NULL;
+    }
+}
+
+char * make_uuid_str(GUID *guid) {
+    if(guid==NULL) {
+        snprintf(guid_str,39,"00000000-0000-0000-0000-000000000000");
+
+    } else {
+            snprintf(guid_str,39,"%08lx-%04x-%04x-%04x-%012llx",
+                guid->Data1, guid->Data2, guid->Data3,
+                (guid->Data4[0] << 8) | guid->Data4[1],
+                *((unsigned long long*)&guid->Data4[2]));
+
+    }
+    printf("Generated UUID: {%s}\n",
+        guid_str);
+    return guid_str;
+}
+
+int main(int argc, char *argv[]) {
+    GUID *project_uuid;
+    int arg_counter = argc - 1;
+    char *dir;
+    char destinationFile[MAX_PATH ];
+    char sourceFile[MAX_PATH ];
+    // 2a412322-7c41-4626-abc3-cbe26a2784d9
+
     // HANDLE semaphore;
 
     // // Create a named semaphore with initial and max count as MAX_CONCURRENT_PROCESSES
@@ -116,6 +154,12 @@ int main() {
     //     return 1;
     // }
 
+
+    if (argc < 2) {
+        printf("Usage: process.exe <target1> [<target2> [<target3> [<targetN>]]]\n");
+        return 1;
+    }
+
     HANDLE mutex;
 
     mutex = CreateMutex(NULL, FALSE, MUTEX_NAME);
@@ -124,29 +168,64 @@ int main() {
         return 1;
     }
 
-    // Create a pool of processes
-    for (int i = 0; i < TOTAL_PROCESSES; i++) {
-        CreateProcessInPool(i + 1);  // Pass process ID to child process
+    for(arg_counter = 1; arg_counter < argc; arg_counter += 1) {
+        project_uuid = make_uuid();
+        dir = make_uuid_str(project_uuid);
+        
+        printf("Creating target '%s'...\n",dir);
+        printf("Deploing target '%s'...\n",argv[arg_counter]);
+        if (CreateDirectory(dir, NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
+            printf("Directory created or already exists.\n");
+
+        } else {
+            printf("Failed to create directory. Error: %d\n", GetLastError());
+
+        }        
+        strnset(destinationFile,0,MAX_PATH);
+        strcpy(destinationFile,dir);
+        strncat(destinationFile,"\\",MAX_PATH);
+        strncat(destinationFile,dir,MAX_PATH);
+        strncat(destinationFile,".dll",MAX_PATH);
+
+        strnset(sourceFile,0,MAX_PATH);
+        strcpy(sourceFile,argv[arg_counter]);
+        strncat(sourceFile,".dll",MAX_PATH);
+        if (CopyFile(sourceFile, destinationFile, TRUE)) {
+            printf("Deploy target '%s' -> '%s'\n",argv[arg_counter],destinationFile);
+        } else {
+            printf("Failed to copy file. Error: %d\n", GetLastError());
+        }
+
+        CreateProcessInPool(dir);  // Pass process ID to child process
+
     }
 
+
+    // Create a pool of processes
+    // for (int i = 0; i < TOTAL_PROCESSES; i++) {
+    //     CreateProcessInPool(i + 1);  // Pass process ID to child process
+    // }
+
     // Close the local semaphore handle since child processes have their own references
+    Sleep(2000);  // Simulate some work with a delay
+
     CloseHandle(mutex);
 
     printf("All processes have been created.\n");
     return 0;
 }
 
-void CreateProcessInPool(int processId) {
+void CreateProcessInPool(char * process_name) {
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
-    char commandLine[128];
+    char commandLine[128] = {0,};
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
     // Prepare command line with process ID
-    snprintf(commandLine, 128,"ChildProcess.exe %d", processId);
+    snprintf(commandLine, 127,"ChildProcess.exe %s", process_name);
 
     // Create child process with command line argument
     if (!CreateProcess(NULL, commandLine, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {

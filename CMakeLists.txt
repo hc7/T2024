@@ -11,3 +11,5 @@ set_property (TARGET ${PROJECT_NAME}
 )
 
 add_executable( ChildProcess process.c )
+
+add_library( targetlibrary SHARED target.c )
